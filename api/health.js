@@ -15,6 +15,7 @@ export default safe(async (req, res) => {
     endpoints: {
       'POST /api/build': 'build a tfs search token + URLs (offline)',
       'POST /api/plan': 'mixed-cabin multi-leg plan (offline)',
+      'POST /api/links': 'unified itinerary: per-leg + board + airline links + Matrix JSON (offline)',
       'POST /api/decode': 'decode any tfs token (offline)',
       'POST /api/parse-results': 'decode itineraries out of a saved page (offline)',
       'POST /api/booking': 'deep link to one exact itinerary (offline)',

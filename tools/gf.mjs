@@ -6,6 +6,7 @@
 //   node tools/gf.mjs decode CBwQAhoeEgoyMDMwLTA5LTE1agcI...
 //   node tools/gf.mjs diff   <tokenA> <tokenB>        # the field-discovery probe
 //   node tools/gf.mjs plan   --legs trip.json
+//   node tools/gf.mjs links  --legs trip.json [--carrier BA]   # all four outputs
 //   node tools/gf.mjs parse  saved-page.html [--cabin business,economy]
 //
 // Everything except `plan`'s URL output is offline.
@@ -13,6 +14,7 @@
 import { readFileSync } from 'fs';
 import { buildTfs, decodeTfs, searchUrl, bookingUrl } from '../lib/tfs.js';
 import { planMixedCabin } from '../lib/mixed-cabin.js';
+import { buildUnifiedItinerary } from '../lib/unified.js';
 import { parseResultsHtml, filterByCabinVector } from '../lib/results.js';
 import { diffMessages, fromBase64Url } from '../lib/protobuf.js';
 
@@ -91,6 +93,17 @@ switch (command) {
     break;
   }
 
+  case 'links': {
+    // The unified itinerary: per-leg links, the board link, carrier links and a
+    // Matrix-shaped JSON document, all from one input file. Same offline rule as
+    // everything else here — building links never contacts anybody.
+    const spec = args.legs ? readJson(args.legs) : args.segments ? readJson(args.segments) : { legs: readJson(positional[0]) };
+    if (args.carrier) spec.carrier = args.carrier;
+    const out = buildUnifiedItinerary(spec);
+    console.log(JSON.stringify(out, null, 2));
+    break;
+  }
+
   case 'parse': {
     const html = readFileSync(positional[0], 'utf8');
     const result = parseResultsHtml(html);
@@ -117,6 +130,8 @@ Usage:
   gf decode <tfs>
   gf diff   <tfsA> <tfsB>
   gf plan   --legs trip.json
+  gf links  --legs trip.json [--carrier BA]     # all four outputs for one itinerary
+  gf links  --segments gds-trip.json
   gf parse  saved-page.html [--cabin business,economy]`);
     process.exit(1);
 }

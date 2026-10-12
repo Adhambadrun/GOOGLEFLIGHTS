@@ -36,6 +36,7 @@ const ROUTES = {
   '/api/build': './api/build.js',
   '/api/decode': './api/decode.js',
   '/api/plan': './api/plan.js',
+  '/api/links': './api/links.js',
   '/api/parse-results': './api/parse-results.js',
   '/api/search': './api/search.js',
   '/api/booking': './api/booking.js',
@@ -93,6 +94,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`GOOGLEFLIGHTS dev server → http://localhost:${PORT}`);
-  console.log(`Offline endpoints: /api/build · /api/plan · /api/decode · /api/parse-results`);
+  console.log(`Offline endpoints: /api/build · /api/plan · /api/links · /api/decode · /api/parse-results`);
   console.log(`Live fetch: ${LIVE_ENABLED() ? 'ENABLED (GF_LIVE=1) — keep the volume low' : 'disabled (set GF_LIVE=1)'}`);
 });
