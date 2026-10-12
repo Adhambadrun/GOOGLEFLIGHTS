@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Vercel
+.vercel/
+
+# Saved captures of Google Flights pages — never commit, they carry dates and
+# prices from a real search and can be large.
+captures/

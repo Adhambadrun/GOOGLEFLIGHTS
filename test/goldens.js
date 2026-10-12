@@ -1,0 +1,46 @@
+// Golden `tfs` tokens captured from the reference implementation.
+//
+// These are the regression lock: byte-identical output against real captures.
+// Dates are deliberately far-future so they never go stale — the encoder does
+// not read the clock, and `tfs` bytes depend only on the dates in the request.
+//
+// Source: punitarani/fli — fli-js/tests/search/tfs.test.ts (TFS_GOLDENS).
+// Regenerate by re-running that project's dump_tfs_goldens.py and re-emitting
+// this file.
+
+export const TFS_GOLDENS = Object.freeze({
+  alliance_exclude_oneworld: 'CBwQAhooEgoyMDMwLTA5LTE1OghPTkVXT1JMRGoHCAESA0pGS3IHCAESA0xBWEABSAFwAZgBAg',
+  alliance_exclude_skyteam: 'CBwQAhonEgoyMDMwLTA5LTE1OgdTS1lURUFNagcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  alliance_exclude_star_alliance: 'CBwQAhotEgoyMDMwLTA5LTE1Og1TVEFSX0FMTElBTkNFagcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  alliance_include_oneworld: 'CBwQAhooEgoyMDMwLTA5LTE1MghPTkVXT1JMRGoHCAESA0pGS3IHCAESA0xBWEABSAFwAZgBAg',
+  alliance_include_skyteam: 'CBwQAhonEgoyMDMwLTA5LTE1MgdTS1lURUFNagcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  alliance_include_star_alliance: 'CBwQAhotEgoyMDMwLTA5LTE1Mg1TVEFSX0FMTElBTkNFagcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  alliance_include_two_exclude_one: 'CBwQAhpAEgoyMDMwLTA5LTE1MghPTkVXT1JMRDINU1RBUl9BTExJQU5DRToHU0tZVEVBTWoHCAESA0pGS3IHCAESA0xBWEABSAFwAZgBAg',
+  cabin_business: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIA3ABmAEC',
+  cabin_economy: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  cabin_first: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIBHABmAEC',
+  cabin_premium_economy: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAnABmAEC',
+  kitchen_sink_round_trip: 'CBwQAhpIEgoyMDMwLTA5LTE1KAEyCE9ORVdPUkxEagcIARIDSkZLagcIARIDRVdScgcIARIDTEhScgcIARIDTEdXegNEVUKIATyQAfABGkgSCjIwMzAtMDktMTkoATIIT05FV09STERqBwgBEgNMSFJqBwgBEgNMR1dyBwgBEgNKRktyBwgBEgNFV1J6A0RVQogBPJAB8AFAAUABQAJAA0gDcAGYAQE',
+  layover_airport_and_min: 'CBwQAhomEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYegNPUkSIAXhAAUgBcAGYAQI',
+  layover_full: 'CBwQAhovEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYegNPUkR6A0RGV4gBWpAB2ARAAUgBcAGYAQI',
+  layover_max_only: 'CBwQAhoiEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYkAGsAkABSAFwAZgBAg',
+  multi_airport: 'CBwQAho5EgoyMDMwLTEwLTE1agcIARIDQk9NagcIARIDREVMagcIARIDQU1EcgcIARIDT1JEcgcIARIDRFRXQAFIAXABmAEC',
+  one_way_jfk_lax: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  pax_adult_child: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFAAkgBcAGYAQI',
+  pax_adult_lap_infant: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFAA0gBcAGYAQI',
+  pax_adult_seat_infant: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFABEgBcAGYAQI',
+  pax_family_mix: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFAAUACQANABEgBcAGYAQI',
+  pax_full_house: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFAAUABQAFAAkACQANABEAESAFwAZgBAg',
+  pax_single_adult: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  pax_two_adults: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFAAUgBcAGYAQI',
+  pax_two_adults_two_lap_infants: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFAAUADQANIAXABmAEC',
+  round_trip_jfk_lax: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYGh4SCjIwMzAtMDktMTlqBwgBEgNMQVhyBwgBEgNKRktAAUgBcAGYAQE',
+  round_trip_selected_connecting_outbound: 'CBwQAhpgEgoyMDMwLTA5LTE1Ih8KA0pGSxIKMjAzMC0wOS0xNRoDT1JEKgJBQTIDMTAwIh8KA09SRBIKMjAzMC0wOS0xNRoDTEhSKgJBQTIDMjAwagcIARIDSkZLcgcIARIDTEhSGh4SCjIwMzAtMDktMTlqBwgBEgNMSFJyBwgBEgNKRktAAUgBcAGYAQE',
+  round_trip_selected_outbound: 'CBwQAho_EgoyMDMwLTA5LTE1Ih8KA0pGSxIKMjAzMC0wOS0xNRoDTEhSKgJCQTIDMTc4agcIARIDSkZLcgcIARIDTEhSGh4SCjIwMzAtMDktMTlqBwgBEgNMSFJyBwgBEgNKRktAAUgBcAGYAQE',
+  stops_any: 'CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  stops_non_stop: 'CBwQAhogEgoyMDMwLTA5LTE1KABqBwgBEgNKRktyBwgBEgNMQVhAAUgBcAGYAQI',
+  stops_one_stop_or_fewer: 'CBwQAhogEgoyMDMwLTA5LTE1KAFqBwgBEgNKRktyBwgBEgNMQVhAAUgBcAGYAQI',
+  stops_two_or_fewer_stops: 'CBwQAhogEgoyMDMwLTA5LTE1KAJqBwgBEgNKRktyBwgBEgNMQVhAAUgBcAGYAQI',
+  sweep_one_way_date_override: 'CBwQAhoeEgoyMDMwLTExLTAyagcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC',
+  sweep_round_trip_date_override: 'CBwQAhoeEgoyMDMwLTExLTAyagcIARIDSkZLcgcIARIDTEFYGh4SCjIwMzAtMTEtMDlqBwgBEgNMQVhyBwgBEgNKRktAAUgBcAGYAQE',
+});
