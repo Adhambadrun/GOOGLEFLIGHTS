@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOOGLEFLIGHTS — mixed-cabin multi-leg search</title>
+<style>
+  :root{--bg:#0b0b0d;--card:#121216;--line:#2a2a2e;--ink:#fafafc;--muted:#a2a2a8;--red:#e00012;--green:#3ddc84;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:1040px;margin:0 auto;padding:18px 14px 70px}
+  header{border:1px solid #3a3a3e;border-left:4px solid var(--red);border-radius:12px;padding:16px 20px}
+  header h1{margin:0;font-size:19px;letter-spacing:.3px}
+  header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;padding:16px 20px;margin-top:12px}
+  .card.plain{border-left-color:#3a3a3e}
+  .step{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--red);font-weight:700;margin:0 0 8px}
+  .card.plain .step{color:var(--muted)}
+  h2{margin:0 0 4px;font-size:15px}
+  .hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+  input,select,textarea{font:inherit;font-size:13px;padding:8px 10px;border:1px solid #33333d;border-radius:8px;background:#0d0d12;color:var(--ink)}
+  input[type=date]{color-scheme:dark}
+  input.code{width:88px;text-transform:uppercase;font-family:ui-monospace,Menlo,Consolas,monospace}
+  textarea{width:100%;min-height:62px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical}
+  button{font:inherit;font-size:13px;font-weight:600;padding:9px 13px;border-radius:8px;border:1px solid #3a3a3e;background:#23232b;color:var(--ink);cursor:pointer}
+  button:hover{filter:brightness(1.15)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .btn-g{background:var(--red);border-color:var(--red);color:#fff}
+  .btn-link{background:#1c1c22}
+  .leg{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:10px 0;border-top:1px dashed #2a2a2e}
+  .leg:first-of-type{border-top:none}
+  .leg .idx{width:22px;height:22px;border-radius:50%;background:#2a2a2e;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:9px}
+  .stepper{display:flex;align-items:center;gap:8px}
+  .stepper button{width:30px;height:30px;padding:0;font-size:16px;line-height:1}
+  .stepper .val{min-width:24px;text-align:center;font-size:17px;font-weight:700}
+  .out{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;padding:12px;border:1px solid #33333d;border-radius:8px;background:#0a0a0e;color:#d6e4f5;white-space:pre-wrap;word-break:break-all;overflow-x:auto}
+  .warn{display:none;margin:0 0 10px;padding:9px 12px;border:1px solid var(--red);border-left:4px solid var(--red);border-radius:8px;background:rgba(224,0,18,.08);color:#ff9aa3;font-size:12px;white-space:pre-wrap;word-break:break-word}
+  .warn.show{display:block}
+  .note{margin:10px 0 0;padding:9px 12px;border:1px solid #3a3a3e;border-left:4px solid #6b6b72;border-radius:8px;background:#0d0d12;color:var(--muted);font-size:12px}
+  .strategy{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:10px;background:#0d0d12}
+  .strategy .why{color:var(--muted);font-size:12px;margin:4px 0 10px}
+  .strategy ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:12px}
+  .search{margin-top:8px}
+  .search .meta{font-size:12px;color:var(--muted)}
+  .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#2a2a2e;color:var(--muted);vertical-align:middle}
+  .badge.mixed{background:rgba(224,0,18,.15);color:#ff9aa3}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #23232b}
+  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  .ok{color:var(--green)} .bad{color:#ff7b85}
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .tabs button{background:#1c1c22}
+  .tabs button[aria-selected=true]{background:var(--red);border-color:var(--red);color:#fff}
+  [hidden]{display:none !important}
+  .credit{margin-top:16px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>GOOGLEFLIGHTS</h1>
+    <p>Build Google Flights search links where <strong>each leg gets its own cabin</strong>. Runs entirely offline — no request is made to Google unless you open a link.</p>
+  </header>
+
+  <!-- 1. itinerary -->
+  <section class="card">
+    <p class="step">Step 1 · Itinerary</p>
+    <h2>Legs</h2>
+    <p class="hint">One row per travel direction. Give each leg its own cabin — that is the part Google's own UI cannot do.</p>
+    <div id="legs"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="addLeg" type="button">+ Add leg</button>
+    </div>
+    <div id="legWarn" class="warn"></div>
+  </section>
+
+  <!-- 2. passengers + options -->
+  <section class="card">
+    <p class="step">Step 2 · Travellers &amp; filters</p>
+    <div class="row">
+      <div class="field">
+        <label>Passengers</label>
+        <div class="stepper">
+          <button type="button" data-pax="-1" aria-label="fewer passengers">−</button>
+          <span class="val" id="paxCount">1</span>
+          <button type="button" data-pax="1" aria-label="more passengers">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="paxKind">Traveller type</label>
+        <select id="paxKind">
+          <option value="adults">Adults (12+)</option>
+          <option value="children">Children (2–11)</option>
+          <option value="infantsOnLap">Infants on lap</option>
+          <option value="infantsInSeat">Infants in seat</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="stops">Max stops</label>
+        <select id="stops">
+          <option value="">Any</option>
+          <option value="0">Non-stop only</option>
+          <option value="1">1 stop or fewer</option>
+          <option value="2">2 stops or fewer</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="carriers">Airline / alliance</label>
+        <input id="carriers" placeholder="BA or ONEWORLD" style="width:150px">
+      </div>
+      <div class="field">
+        <label for="curr">Currency</label>
+        <input id="curr" placeholder="USD" value="USD" style="width:80px">
+      </div>
+    </div>
+    <p class="hint">
+      The passenger stepper adds to the selected traveller type. Google allows at most 9 travellers.
+      Airline field takes an IATA code (<code>BA</code>) or an alliance name (<code>ONEWORLD</code>, <code>STAR_ALLIANCE</code>, <code>SKYTEAM</code>).
+    </p>
+    <div class="row" style="margin-top:12px">
+      <button id="plan" class="btn-g" type="button">Plan mixed-cabin search</button>
+      <button id="single" type="button">Build one plain search link</button>
+    </div>
+  </section>
+
+  <!-- 3. output -->
+  <section class="card" id="resultsCard" hidden>
+    <p class="step">Step 3 · Links</p>
+    <h2 id="resultsTitle">Search strategies</h2>
+    <div id="warnings"></div>
+    <div id="strategies"></div>
+    <div id="rawOut" class="out" style="margin-top:12px" hidden></div>
+    <div class="row" style="margin-top:10px">
+      <button id="copyAll" class="btn-link" type="button">Copy all links</button>
+      <button id="showJson" class="btn-link" type="button">Show raw JSON</button>
+    </div>
+  </section>
+
+  <!-- 4. tools -->
+  <section class="card plain">
+    <p class="step">Tools</p>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="decode" aria-selected="true">Decode a tfs</button>
+      <button type="button" role="tab" data-tab="parse" aria-selected="false">Parse a saved page</button>
+      <button type="button" role="tab" data-tab="book" aria-selected="false">Booking deep link</button>
+    </div>
+
+    <div id="tab-decode" role="tabpanel">
+      <p class="hint">Paste any <code>tfs</code> token (or a full Google Flights URL) to see what it actually asks for.</p>
+      <textarea id="decodeIn" placeholder="CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC"></textarea>
+      <div class="row" style="margin-top:8px"><button id="decodeGo" type="button">Decode</button></div>
+      <div id="decodeOut" class="out" style="margin-top:10px" hidden></div>
+    </div>
+
+    <div id="tab-parse" role="tabpanel" hidden>
+      <p class="hint">
+        Save a Google Flights <strong>one-way or round-trip</strong> results page (Right-click → Save as → HTML Only) and paste it here.
+        The reader pulls the itineraries out of the page's <code>ds:1</code> blob and matches them against a per-leg cabin vector.
+        Multi-city pages carry no rows to read — Google loads those client-side.
+      </p>
+      <textarea id="parseIn" placeholder="paste saved HTML here" style="min-height:90px"></textarea>
+      <div class="row" style="margin-top:8px;align-items:flex-end">
+        <div class="field">
+          <label for="vector">Cabin vector (comma separated, one per leg)</label>
+          <input id="vector" placeholder="business,economy" style="width:220px">
+        </div>
+        <button id="parseGo" type="button">Parse &amp; match</button>
+      </div>
+      <div id="parseOut" class="out" style="margin-top:10px" hidden></div>
+    </div>
+
+    <div id="tab-book" role="tabpanel" hidden>
+      <p class="hint">
+        Paste the JSON of one parsed itinerary (or a list of them) to get a booking deep link for that exact set of flights.
+        Shape: <code>{"legs":[{"from":"JFK","to":"LHR","departure":"2026-12-01T20:30","airline":"BA","flightNumber":"178"}]}</code>
+      </p>
+      <textarea id="bookIn" style="min-height:90px" placeholder='{"legs":[{"from":"JFK","to":"LHR","departure":"2026-12-01T20:30","airline":"BA","flightNumber":"178"}]}'></textarea>
+      <div class="row" style="margin-top:8px"><button id="bookGo" type="button">Build booking link</button></div>
+      <div id="bookOut" class="out" style="margin-top:10px" hidden></div>
+    </div>
+  </section>
+
+  <p class="credit">
+    Reverse-engineered protocol notes live in <code>PROTOCOL.md</code>. Capture your own tokens with <code>tools/CAPTURE.md</code>.
+    Links are constructed locally; nothing here queries Google automatically.
+  </p>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
