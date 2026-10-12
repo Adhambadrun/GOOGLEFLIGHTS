@@ -10,10 +10,17 @@ LHR → CAI   economy
 ```
 
 Google's own UI has one cabin selector for the whole trip, so it cannot express
-that. This tool builds the links that can.
+that. This tool builds the links that can — and, since it absorbed
+[`Adhambadrun/SpicyLinkGenerator`](https://github.com/Adhambadrun/SpicyLinkGenerator),
+also builds the links that hand the same trip to an airline.
+
+One itinerary in, four outputs out: **per-leg** Google Flights searches, one
+**board** search, **airline** links, and a **Matrix-shaped JSON** document. See
+[The unified itinerary](#the-unified-itinerary--four-outputs).
 
 Everything runs offline. Links are constructed locally from airports, dates and
-flight numbers — no request is made to Google unless you open a link.
+flight numbers — no request is made to Google or to any airline unless you open
+a link.
 
 ---
 
@@ -41,7 +48,7 @@ Full protocol notes, with provenance and confidence levels: **[PROTOCOL.md](PROT
 ```bash
 npm install        # no dependencies — this is a no-op
 npm run dev        # http://localhost:8080
-npm test           # 76 tests, all offline
+npm test           # 90 tests, all offline
 ```
 
 Open the page, edit the two example legs, hit **Plan mixed-cabin search**.
@@ -54,6 +61,10 @@ node tools/gf.mjs build --from JFK --to LHR --date 2026-12-01 --cabin business
 
 # the mixed-cabin planner
 node tools/gf.mjs plan --legs trip.json
+
+# all four outputs for one itinerary (per-leg, board, airline, Matrix JSON)
+node tools/gf.mjs links --legs trip.json
+node tools/gf.mjs links --segments gds-trip.json --carrier BA
 
 # what does this token actually ask for?
 node tools/gf.mjs decode CBwQAhoeEgoyMDMwLTA5LTE1agcIARIDSkZLcgcIARIDTEFYQAFIAXABmAEC
@@ -69,6 +80,20 @@ node tools/gf.mjs diff <token-before> <token-after>
   "legs": [
     { "from": "JFK", "to": "LHR", "date": "2026-12-01", "cabin": "business" },
     { "from": "LHR", "to": "CAI", "date": "2026-12-08", "cabin": "economy" }
+  ]
+}
+```
+
+`gds-trip.json` — the richer shape that also unlocks the airline and Matrix
+outputs, because it names the flights:
+
+```json
+{
+  "segments": [
+    { "origin": "JFK", "dest": "LHR", "ymd": "2026-12-01", "cabin": "business",
+      "carrier": "AA", "num": "100", "cls": "J", "depH": 19, "depM": 0, "arrH": 7, "arrM": 0, "plus": true },
+    { "origin": "LHR", "dest": "JFK", "ymd": "2026-12-08", "cabin": "economy",
+      "carrier": "AA", "num": "101", "cls": "Y", "depH": 11, "depM": 30, "arrH": 14, "arrM": 35 }
   ]
 }
 ```
@@ -113,6 +138,91 @@ multi-city fare was **$1,107** versus **$1,484** as two one-ways — same legs,
 
 ---
 
+## The unified itinerary — four outputs
+
+`POST /api/links` (and `gf links`) is the join between this repository and
+[`Adhambadrun/SpicyLinkGenerator`](https://github.com/Adhambadrun/SpicyLinkGenerator).
+Google Flights can *express* a mixed-cabin trip but cannot book it; an airline
+can book it but has one cabin selector and, for most carriers, no prefill anyone
+has been able to verify. So one itinerary goes in and every option comes back,
+each labelled with what it honours and what it cannot express.
+
+| Output type | Honours | Cannot feature |
+| --- | --- | --- |
+| **Per-leg** | Each leg's own cabin | Bundled pricing |
+| **Board** | Highest cabin only | Per-leg detail |
+| **Airline links** | Known carrier surface | Pre-filled fare |
+| **BookWithMatrix JSON** | Cabin vector + mixed flag | Live pricing |
+
+Those strings are in the payload verbatim, as `honours` / `cannotFeature` on
+each strategy — a consumer never has to remember the table.
+
+```bash
+curl -s -X POST localhost:8080/api/links -H 'content-type: application/json' \
+  -d '{"legs":[{"from":"JFK","to":"LHR","date":"2026-12-01","cabin":"business"},
+               {"from":"LHR","to":"CAI","date":"2026-12-08","cabin":"economy"}]}'
+```
+
+```js
+import { buildUnifiedItinerary } from './lib/unified.js';
+
+const out = buildUnifiedItinerary({ legs, passengers: { adults: 2 } });
+out.cabinVector;                          // ['business','economy']
+out.mixedCabin;                           // true
+out.strategies.perLeg.searches[0].url;    // one-way, business
+out.strategies.board.url;                 // multi-city, opened in business
+out.strategies.airlineLinks.carriers;     // AA / BA / directory homepages
+out.strategies.matrixJson.json;           // itinerary.slices[].segments[]
+```
+
+### Airline links, precisely
+
+- **AA** — the historical `/goto/metasearch?ITEN=…` handoff, carrying every leg.
+  Pinned by the same sha256 golden SpicyLinkGenerator pins, so the port cannot
+  drift. Needs AA-marketed legs with a flight number, a booking class and an
+  airport this repo has a timezone for.
+- **BA** — **its own empty search form**, with the itinerary spelled out in the
+  note so you can type it in. BA has no pre-filled link anyone could verify:
+  real-browser runs on 2026-10-12 hung forever on *"Give us a moment, we're
+  calculating your price"* (recorded **BLOCKED**), and BA's form ignores every
+  prefill parameter probed. `assertNotBlockedBaHandoff()` still refuses to emit
+  one, and the legacy builder still rejects anything past two O&D slices.
+- **DL / UA** — experimental search prefills, clearly labelled *NOT guaranteed*.
+- **Everyone else** — the carrier's homepage from a 66-entry directory that was
+  never live-checked. Connections and multi-city trips never collapse into a
+  wrong direct search: they fall back to the homepage instead.
+
+No carrier link ever carries a fare, a session id, a passenger name, a passport
+number or payment detail in the URL.
+
+### When an output cannot be built, it says so
+
+Nothing is fabricated to fill a hole. Ask for airline links on an itinerary that
+names no carrier and you get `available: false` with the reason and a per-leg
+list of what is missing — not a guessed airline:
+
+```json
+{ "available": false,
+  "reason": "No marketing carrier on any leg, so there is no airline to hand this itinerary to…",
+  "gaps": [{ "leg": 0, "route": "JFK→LHR", "needs": ["carrier", "flightNumber", "bookingClass"] }] }
+```
+
+The same rule covers timestamps: an airport outside the verified zone map gets
+**no** Matrix document rather than a made-up UTC offset, and a daylight-saving
+gap is refused rather than resolved by picking one of the two hours.
+
+Two cabins rules legitimately disagree, and both are reported rather than one
+being silently rewritten — `strategies.board.openInCabin` uses the **highest**
+requested cabin (never downgrade a leg you asked to fly premium), while
+`strategies.airlineLinks.searchCabin` uses the **most common** cabin, ties to the
+higher one (SpicyLinkGenerator's rule for a carrier form with one class
+selector). `cabinPolicy` explains the difference in the payload.
+
+Full reasoning, every overlap, every gap and the fidelity evidence:
+**[docs/COMBINE-AUDIT.md](docs/COMBINE-AUDIT.md)**.
+
+---
+
 ## Matching results against a cabin vector
 
 Save a one-way or round-trip results page from your browser (Right-click →
@@ -150,12 +260,17 @@ the same code.
 
 | Endpoint | Purpose | Network |
 | --- | --- | --- |
+| `POST /api/links` | **unified itinerary — all four outputs at once** | offline |
 | `POST /api/plan` | mixed-cabin multi-leg plan | offline |
 | `POST /api/build` | one `tfs` token + URLs | offline |
 | `POST /api/booking` | deep link to one exact itinerary | offline |
 | `POST /api/decode` | decode any `tfs` token | offline |
 | `POST /api/parse-results` | itineraries out of a saved page | offline |
 | `POST /api/search` | fetch a results page | **off unless `GF_LIVE=1`** |
+
+`/api/links` accepts any of three input shapes — `legs[]` (this repo),
+`segments[]` (SpicyLinkGenerator / GDS rows) or a Matrix-style `itinerary`
+document — and returns 400 with a reason for a malformed itinerary.
 
 ```bash
 curl -s localhost:8080/api/health
@@ -187,27 +302,39 @@ and parsing both work with zero requests.
 index.html          UI
 app.js              front-end (talks only to /api/*)
 dev-server.mjs      local server, binds 0.0.0.0:8080
-api/                handlers (health, build, plan, booking, decode, parse-results, search)
+api/                handlers (health, build, plan, links, booking, decode, parse-results, search)
 lib/
   protobuf.js       zero-dependency wire codec + describeMessage + diffMessages
   tfs.js            build/decode tfs tokens, search + booking URLs
   results.js        parse saved pages, match itineraries against a cabin vector
   mixed-cabin.js    the three-strategy planner
   booking-link.js   deterministic deep links to one exact itinerary
+  unified.js        one itinerary in → four outputs out (the join)
+  airline-links.js  AA handoff, BA's blocked-handoff guards, carrier prefills   [ported]
+  airline-directory.js  66 candidate carrier homepages                          [ported]
+  aa-handoff.js     the AA metasearch envelope + DST-correct airport clock       [ported]
+  matrix.js         import and export Matrix-style itinerary JSON          [ported + new]
   live.js           opt-in, rate-limited page fetch
   http.js           tiny request/response helpers
 tools/gf.mjs        CLI
 tools/CAPTURE.md    how to capture your own tokens and pages
-test/               76 tests, all offline
+docs/COMBINE-AUDIT.md  overlaps, gaps, divergences and fidelity evidence
+test/               90 tests, all offline
 PROTOCOL.md         the reverse-engineering notes
 ```
+
+Files marked `[ported]` come from
+[`Adhambadrun/SpicyLinkGenerator`](https://github.com/Adhambadrun/SpicyLinkGenerator).
+Every note string, guard and URL shape is preserved verbatim; the seven
+deliberate divergences are listed in
+[docs/COMBINE-AUDIT.md §5](docs/COMBINE-AUDIT.md).
 
 ---
 
 ## Tests
 
 ```bash
-npm test
+npm test           # 90 tests — 76 original + 14 for the unified itinerary
 ```
 
 - **34 golden tokens** from real captures, compared **byte for byte** and
@@ -218,8 +345,20 @@ npm test
   the passenger-code traps.
 - Result-parser and cabin-vector matching tests.
 - Planner, booking-link and endpoint tests.
+- **14 unified-itinerary tests** (`test/unified.test.js`): both input
+  vocabularies, per-leg and board cabin pinning, the AA sha256 golden carried
+  over from SpicyLinkGenerator, the BA blocked-handoff guard, Matrix JSON
+  round-trip, DST-correct offsets, honest degradation, both passenger
+  vocabularies, and the `/api/links` handler's 200 / 400 / 405 paths.
+- `/api/links` and `/api/plan` build their tokens through the same planner, and
+  a test asserts the bytes are equal — the two endpoints cannot drift apart.
 
 Zero dependencies, zero network.
+
+SpicyLinkGenerator's **own** test suites were also run against the ported
+modules: 19 of 20 pass, and the one failure is the deliberate `logoUrl`
+divergence (the airline logo assets were not ported). The command to reproduce
+that check is in [docs/COMBINE-AUDIT.md §4](docs/COMBINE-AUDIT.md).
 
 ---
 
@@ -228,17 +367,82 @@ Zero dependencies, zero network.
 The encoder is byte-exact against 34 real captured tokens — the strongest
 offline check available. It has **not** been confirmed against live Google from
 the environment this was built in, which has no outbound access to
-`google.com`. Open a generated link and confirm the board shows the trip you
-asked for before relying on it.
+`google.com` — and no outbound access to any airline site either. Every link
+this tool emits, Google or airline, is therefore **unverified until a human
+opens it**.
+
+### Validation checklist
+
+Run this by hand once per route family before relying on generated links. Each
+step exists because something in the chain could be quietly wrong while every
+test still passes.
+
+**Google Flights links**
+
+- [ ] Open a **per-leg** link. Does the board show a one-way search for exactly
+      that leg, in exactly that leg's cabin? (Check the cabin picker, not just
+      the rows.)
+- [ ] Open the **board** link. Are all legs present as separate rows of the
+      multi-city form, with the right dates and airports?
+- [ ] Is the board opened in the **highest** requested cabin, as
+      `openInCabin` claims?
+- [ ] On a premium search, do any result rows show **mixed cabins**? Read the
+      per-leg cabin labels off the row and compare with `cabinVector`.
+- [ ] Save a one-way results page and run `gf parse saved.html --cabin …`. Do
+      the matched itineraries agree with what the page shows? (Multi-city pages
+      load rows client-side and cannot be parsed — that is expected, not a bug.)
+- [ ] Do the per-leg fares and the bundled board fare differ? By how much?
+      Record it; there is no rule for which wins.
+
+**Airline links**
+
+- [ ] **AA**: does the metasearch link land on a flight-selection page showing
+      *every* leg? On a mixed-carrier trip, are the non-AA legs pinned at all?
+      (They may not be — the note says so.)
+- [ ] **BA**: does the search form open, and does typing the itinerary from
+      `manualEntryHint` produce results? The form opens **empty** by design.
+      If a BA link ever arrives pre-filled, treat it as a regression —
+      `assertNotBlockedBaHandoff()` should have thrown.
+- [ ] **DL / UA**: does the prefill populate origin, destination and dates?
+      Cabin and passenger counts are *not* guaranteed.
+- [ ] **Homepage fallbacks**: is the carrier in the directory still the right
+      one, and does the host still resolve? The 66 entries were never
+      live-checked and ownership changes.
+- [ ] Confirm no URL contains a fare, a session id, or any passenger identity
+      detail. Tests assert this; eyeball it anyway.
+
+**Matrix JSON**
+
+- [ ] `roundTrips: true` only proves *this repository's* importer accepts the
+      document. If you rely on the real BookWithMatrix service, import one
+      document there and record what it accepted — that acceptance test does not
+      exist yet, and shaped JSON alone is not proof.
+- [ ] Check one timestamp against a real schedule: the offset must be the
+      airport's *actual* offset on that date, daylight saving included.
+- [ ] The document carries **no price**. If a consumer displays one, it did not
+      come from here.
+
+Anything that fails a box above is a finding worth an issue: it means a link
+this tool builds does not do what the payload claims.
 
 ## Scope
 
-Built for research into how Google Flights represents a search. It constructs
-URLs you could assemble by hand from a captured token, and reads data your own
-browser already downloaded. It does not bypass anything: no credentials, no
-signed-RPC replay, no anti-bot evasion.
+Built for research into how Google Flights represents a search, and into what an
+airline website can actually be handed. It constructs URLs you could assemble by
+hand from a captured token or a carrier's documented search form, and reads data
+your own browser already downloaded. It does not bypass anything: no credentials,
+no signed-RPC replay, no anti-bot evasion. Airline links are search handoffs —
+never a cart, a held seat or a fare.
 
 ## Credits
 
 Protocol work cross-checked against `punitarani/fli`, `AWeirdDev/flights` and
-`google-flights-ts`. UI conventions follow `Adhambadrun/SpicyLinkGenerator`.
+`google-flights-ts`.
+
+The airline-link half — `lib/airline-links.js`, `lib/airline-directory.js`,
+`lib/aa-handoff.js` and the Matrix importer in `lib/matrix.js` — is ported from
+[`Adhambadrun/SpicyLinkGenerator`](https://github.com/Adhambadrun/SpicyLinkGenerator),
+including its recorded findings: the AA metasearch envelope, the 66-carrier
+directory, and BA's **BLOCKED** offer-search handoff with the guards that keep it
+from coming back. Ported files, fidelity evidence and the seven deliberate
+divergences are itemised in [docs/COMBINE-AUDIT.md](docs/COMBINE-AUDIT.md).
